@@ -190,6 +190,65 @@ void lsrp(const string& sourceId) {
     }
 }
 
+void dvrp(const string& sourceId) {
+    int numNodes = nodeIndexMap.size();
+    vector<vector<int>> dist(numNodes, vector<int>(numNodes, INT_MAX));
+    vector<vector<int>> nextHop(numNodes, vector<int>(numNodes, -1));
+    int sourceIndex = nodeIndexMap[sourceId];
+
+    // Initialize distance matrix and next hop matrix
+    for (int i = 0; i < numNodes; i++) {
+        for (int j = 0; j < numNodes; j++) {
+            if (i == j) {
+                dist[i][j] = 0;
+            } else if (adjMatrix[i][j] != -1) {
+                dist[i][j] = adjMatrix[i][j];
+                nextHop[i][j] = j;
+            }
+        }
+    }
+
+    // Run DVRP algorithm
+    bool updated = true;
+    while (updated) {
+        updated = false;
+        for (int i = 0; i < numNodes; i++) {
+            if (i != sourceIndex) {
+                int minDist = INT_MAX;
+                int next = -1;
+                for (int j = 0; j < numNodes; j++) {
+                    if (dist[sourceIndex][j] != INT_MAX && adjMatrix[j][i] != -1 && dist[sourceIndex][j] + adjMatrix[j][i] < minDist) {
+                        minDist = dist[sourceIndex][j] + adjMatrix[j][i];
+                        next = j;
+                    }
+                }
+                if (minDist < dist[sourceIndex][i]) {
+                    dist[sourceIndex][i] = minDist;
+                    nextHop[sourceIndex][i] = next;
+                    updated = true;
+                }
+            }
+        }
+    }
+
+    // Print the results
+    cout << "Routing table for node " << sourceId << ":" << endl;
+    cout << setw(10) << "Dest" << setw(10) << "Next Hop" << setw(10) << "Dist" << setw(20) << "Shortest-Path" << endl;
+    for (int i = 0; i < numNodes; i++) {
+        if (i != sourceIndex) {
+            int next = nextHop[sourceIndex][i];
+            string nextId = getNodeId(next);
+            cout << setw(10) << getNodeId(i) << setw(10) << nextId << setw(10) << dist[sourceIndex][i] << setw(20) << sourceId;
+            while (next != i) {
+                cout << " -> " << nextId;
+                next = nextHop[next][i];
+                nextId = getNodeId(next);
+            }
+            cout << " -> " << getNodeId(i) << endl;
+        }
+    }
+}
+
 
 int main() {
     // Initialize the adjacency matrix with -1 to represent unassigned distances
@@ -224,6 +283,9 @@ int main() {
         }
         else if (cmd.substr(0, 4) == "lsrp") {
             lsrp(cmd.substr(5));
+        }
+        else if (cmd.substr(0, 4) == "dvrp") {
+            dvrp(cmd.substr(5));
         }
         else 
         {
