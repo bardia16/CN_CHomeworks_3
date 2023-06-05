@@ -4,6 +4,7 @@
 #include <sstream>
 #include <iomanip>
 #include <climits>
+#include <algorithm>
 
 using namespace std;
 
@@ -23,7 +24,7 @@ void updateTopology(string topologyCmd) {
         int dashPos1 = nodePair.find('-');
         int dashPos2 = nodePair.find('-', dashPos1 + 1);
         if (dashPos1 == string::npos || dashPos2 == string::npos) {
-            cout << "Invalid input: " << nodePair << endl;
+            cout << "Invalid input syntax: " << nodePair << endl;
             continue;
         }
         string node1 = nodePair.substr(0, dashPos1);
@@ -47,6 +48,7 @@ void updateTopology(string topologyCmd) {
         adjMatrix[node1Index][node2Index] = distance;
         adjMatrix[node2Index][node1Index] = distance;
     }
+    cout << "Topology has been updated." << endl;
 }
 
 string getNodeId(int index) {
@@ -83,14 +85,37 @@ void modifyDistance(const string& cmd) {
     int dashPos1 = cmd.find('-');
     int dashPos2 = cmd.find('-', dashPos1 + 1);
     if (dashPos1 == string::npos || dashPos2 == string::npos) {
-        cout << "Invalid input: " << cmd << endl;
+        cout << "Invalid input syntax: " << cmd << endl;
         return;
     }
     string node1 = cmd.substr(0, dashPos1);
     string node2 = cmd.substr(dashPos1 + 1, dashPos2 - dashPos1 - 1);
     int distance = stoi(cmd.substr(dashPos2 + 1));
+
+    if (node1 == node2) {
+        cout << "Invalid input: The destination and source are the same" << endl;
+        return;
+    }
+    
     if (nodeIndexMap.find(node1) == nodeIndexMap.end() || nodeIndexMap.find(node2) == nodeIndexMap.end()) {
-        cout << "Invalid input: " << cmd << endl;
+        int node1Index, node2Index;
+        if (nodeIndexMap.find(node1) == nodeIndexMap.end()) {
+            // Add node1 to the map if it's not already there
+            node1Index = nodeIndexMap.size();
+            nodeIndexMap[node1] = node1Index;
+        } else {
+            node1Index = nodeIndexMap[node1];
+        }
+        if (nodeIndexMap.find(node2) == nodeIndexMap.end()) {
+            // Add node2 to the map if it's not already there
+            node2Index = nodeIndexMap.size();
+            nodeIndexMap[node2] = node2Index;
+        } else {
+            node2Index = nodeIndexMap[node2];
+        }
+        adjMatrix[node1Index][node2Index] = distance;
+        adjMatrix[node2Index][node1Index] = distance;
+        cout << "Distance between " << node1 << " and " << node2 << " updated to " << distance << endl;
         return;
     }
     int node1Index = nodeIndexMap[node1];
@@ -104,20 +129,22 @@ void removeDistance(const string& cmd) {
     int dashPos1 = cmd.find('-');
     int dashPos2 = cmd.find('-', dashPos1 + 1);
     if (dashPos1 == string::npos || dashPos2 != string::npos) {
-        cout << "Invalid input: " << cmd << endl;
+        cout << "Invalid input syntax: " << cmd << endl;
         return;
     }
     string node1 = cmd.substr(0, dashPos1);
     string node2 = cmd.substr(dashPos1 + 1);
-    if (nodeIndexMap.find(node1) == nodeIndexMap.end() || nodeIndexMap.find(node2) == nodeIndexMap.end()) {
-        cout << "Invalid input: " << cmd << endl;
-        return;
-    }
     int node1Index = nodeIndexMap[node1];
     int node2Index = nodeIndexMap[node2];
-    adjMatrix[node1Index][node2Index] = -1;
-    adjMatrix[node2Index][node1Index] = -1;
-    cout << "Distance between " << node1 << " and " << node2 << " removed" << endl;
+
+    if (adjMatrix[node1Index][node2Index] == -1) 
+        cout << "Invalid input: Cannot remove paths that don't exist." << endl;
+
+    else {
+        adjMatrix[node1Index][node2Index] = -1;
+        adjMatrix[node2Index][node1Index] = -1;
+        cout << "Distance between " << node1 << " and " << node2 << " removed" << endl;
+    }
 }
 
 void lsrp(const string& sourceId) {
@@ -138,7 +165,6 @@ void lsrp(const string& sourceId) {
             }
         }
     }
-
     // Run Dijkstra's algorithm for each node
     for (int iter = 0; iter < numNodes; iter++) {
         // Find the node with the minimum distance that has not been visited
@@ -164,32 +190,74 @@ void lsrp(const string& sourceId) {
         }
 
         visited[currNode] = true;
-
         // Print the cost to reach each destination node in this iteration
-        cout << "Iteration " << iter << ":" << endl;
-        cout << setw(10) << "Node" << setw(10) << "Cost" << endl;
-        for (int i = 0; i < numNodes; i++) {
-            if (dist[i] == INT_MAX) {
-                cout << setw(10) << getNodeId(i) << setw(10) << "INF" << endl;
-            } else {
-                cout << setw(10) << getNodeId(i) << setw(10) << dist[i] << endl;
+        if(iter + 1 != numNodes) {
+            cout << "Iteration " << iter + 1 << ":" << endl;
+            cout << "Dest ";
+            for (int i = 0; i < numNodes; i++) {
+                cout << getNodeId(i) << " | ";
             }
+            cout << endl;
+            cout << "Cost ";
+            for (int i = 0; i < numNodes; i++) {
+                if (dist[i] == INT_MAX) 
+                    cout << -1 << " | ";
+                else 
+                    cout << dist[i] << " | ";
+            }
+            cout << endl;
+            cout << "------------------------" << endl;
         }
-        cout << endl;
-    }
 
-    // Print the final cost to reach each destination node
-    cout << "Final result:" << endl;
-    cout << setw(10) << "Node" << setw(10) << "Cost" << endl;
-    for (int i = 0; i < numNodes; i++) {
-        if (dist[i] == INT_MAX) {
-            cout << setw(10) << getNodeId(i) << setw(10) << "INF" << endl;
-        } else {
-            cout << setw(10) << getNodeId(i) << setw(10) << dist[i] << endl;
+        else{
+            cout << "Path [s] -> [d] | Min-Cost | Shortest-Path" << endl;
+
+            for (int i = 0; i < numNodes; i++) {
+                if(sourceId == to_string(i + 1))
+                    continue;
+                cout << sourceId << "->" << getNodeId(i) << " | ";
+
+                if (dist[i] == INT_MAX) {
+                cout << "-1 | No Path" << endl;
+                } 
+                else {
+                    cout << dist[i] << " | ";
+                    vector<int> path;
+                    int currNode = i;
+                    while (currNode != -1) {
+                        path.push_back(currNode);
+                        currNode = prev[currNode];
+                    }
+                    reverse(path.begin(), path.end());
+                    for (int j = 0; j < path.size(); j++) {
+                        if (j == path.size() - 1) {
+                            cout << getNodeId(path[j]);
+                        } else {
+                            cout << getNodeId(path[j]) << " -> ";
+                        }
+                    }
+                    cout << endl;
+                }
+            }
         }
     }
 }
-
+void abstractLSRP(const string &cmd) {
+    if(cmd.length() > 5){
+        cout << "Node " << -1 << endl;
+        lsrp(cmd.substr(5));
+    }
+    else{
+        int numNodes = nodeIndexMap.size();
+        for(int i = 1; i <= numNodes; i++)
+        {
+            cout << "Node " << i << endl;
+            cout << "------------------------" << endl;
+            lsrp(to_string(i));
+            cout << "------------------------" << endl;
+        }
+    }
+}
 void dvrp(const string& sourceId) {
     int numNodes = nodeIndexMap.size();
     vector<vector<int>> dist(numNodes, vector<int>(numNodes, INT_MAX));
@@ -232,38 +300,51 @@ void dvrp(const string& sourceId) {
     }
 
     // Print the results
-    cout << "Routing table for node " << sourceId << ":" << endl;
-    cout << setw(10) << "Dest" << setw(10) << "Next Hop" << setw(10) << "Dist" << setw(20) << "Shortest-Path" << endl;
+    cout <<  "Dest" << " | " << "Next Hop" << " | " << "Dist" << " | " << "Shortest-Path" << endl;
+    cout << "------------------------" << endl;
     for (int i = 0; i < numNodes; i++) {
         if (i != sourceIndex) {
             int next = nextHop[sourceIndex][i];
             string nextId = getNodeId(next);
-            cout << setw(10) << getNodeId(i) << setw(10) << nextId << setw(10) << dist[sourceIndex][i] << setw(20) << sourceId;
+            cout << getNodeId(i) << " | " << nextId << " | " << dist[sourceIndex][i] << " | [" << sourceId;
             while (next != i) {
                 cout << " -> " << nextId;
                 next = nextHop[next][i];
                 nextId = getNodeId(next);
             }
-            cout << " -> " << getNodeId(i) << endl;
+            cout << "->" << getNodeId(i) << "]" << endl;
+        }
+        else
+        {
+            cout << sourceIndex << " | " << sourceIndex << " | " << dist[sourceIndex][i] << " | [" << sourceIndex << "]" << endl;
         }
     }
 }
-
+void abstractDVRP(const string &cmd) {
+    if(cmd.length() > 5){
+        cout << "Node " << -1 << endl;
+        lsrp(cmd.substr(5));
+    }
+    else{
+        int numNodes = nodeIndexMap.size();
+        for(int i = 1; i <= numNodes; i++)
+        {
+            cout << "Routing table for node " << i << ":" << endl;
+            cout << "------------------------" << endl;
+            dvrp(to_string(i));
+            cout << "------------------------" << endl;
+        }
+    }
+}
 
 int main() {
     // Initialize the adjacency matrix with -1 to represent unassigned distances
     for (int i = 0; i < MAX_NODES; i++) {
         for (int j = 0; j < MAX_NODES; j++) {
             if (i == j)
-            {
                 adjMatrix[i][j] = 0;
-            }
-            
             else
-            {
                 adjMatrix[i][j] = -1;
-            }
-                
         }
     }
     string cmd;
@@ -282,10 +363,10 @@ int main() {
             removeDistance(cmd.substr(7));
         }
         else if (cmd.substr(0, 4) == "lsrp") {
-            lsrp(cmd.substr(5));
+            abstractLSRP(cmd);
         }
         else if (cmd.substr(0, 4) == "dvrp") {
-            dvrp(cmd.substr(5));
+            abstractDVRP(cmd);
         }
         else 
         {
