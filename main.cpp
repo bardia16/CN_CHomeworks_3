@@ -120,6 +120,77 @@ void removeDistance(const string& cmd) {
     cout << "Distance between " << node1 << " and " << node2 << " removed" << endl;
 }
 
+void lsrp(const string& sourceId) {
+    int numNodes = nodeIndexMap.size();
+    vector<int> dist(numNodes, INT_MAX);
+    vector<bool> visited(numNodes, false);
+    vector<int> prev(numNodes, -1);
+    vector<vector<int>> adjList(numNodes, vector<int>());
+    int sourceIndex = nodeIndexMap[sourceId];
+    dist[sourceIndex] = 0;
+
+    // Build adjacency list
+    for (int i = 0; i < numNodes; i++) {
+        for (int j = 0; j < numNodes; j++) {
+            if (i != j && adjMatrix[i][j] != -1) {
+                adjList[i].push_back(j);
+                adjList[j].push_back(i);
+            }
+        }
+    }
+
+    // Run Dijkstra's algorithm for each node
+    for (int iter = 0; iter < numNodes; iter++) {
+        // Find the node with the minimum distance that has not been visited
+        int minDist = INT_MAX;
+        int currNode = -1;
+        for (int i = 0; i < numNodes; i++) {
+            if (!visited[i] && dist[i] < minDist) {
+                minDist = dist[i];
+                currNode = i;
+            }
+        }
+        if (currNode == -1) {
+            break;
+        }
+
+        // Update the distances of the neighbors of the current node
+        for (int neighbor : adjList[currNode]) {
+            int newDist = dist[currNode] + adjMatrix[currNode][neighbor];
+            if (newDist < dist[neighbor]) {
+                dist[neighbor] = newDist;
+                prev[neighbor] = currNode;
+            }
+        }
+
+        visited[currNode] = true;
+
+        // Print the cost to reach each destination node in this iteration
+        cout << "Iteration " << iter << ":" << endl;
+        cout << setw(10) << "Node" << setw(10) << "Cost" << endl;
+        for (int i = 0; i < numNodes; i++) {
+            if (dist[i] == INT_MAX) {
+                cout << setw(10) << getNodeId(i) << setw(10) << "INF" << endl;
+            } else {
+                cout << setw(10) << getNodeId(i) << setw(10) << dist[i] << endl;
+            }
+        }
+        cout << endl;
+    }
+
+    // Print the final cost to reach each destination node
+    cout << "Final result:" << endl;
+    cout << setw(10) << "Node" << setw(10) << "Cost" << endl;
+    for (int i = 0; i < numNodes; i++) {
+        if (dist[i] == INT_MAX) {
+            cout << setw(10) << getNodeId(i) << setw(10) << "INF" << endl;
+        } else {
+            cout << setw(10) << getNodeId(i) << setw(10) << dist[i] << endl;
+        }
+    }
+}
+
+
 int main() {
     // Initialize the adjacency matrix with -1 to represent unassigned distances
     for (int i = 0; i < MAX_NODES; i++) {
@@ -151,7 +222,11 @@ int main() {
         else if (cmd.substr(0, 6) == "remove") {
             removeDistance(cmd.substr(7));
         }
-        else {
+        else if (cmd.substr(0, 4) == "lsrp") {
+            lsrp(cmd.substr(5));
+        }
+        else 
+        {
             cout << "Invalid command." << endl;
         }
     }
